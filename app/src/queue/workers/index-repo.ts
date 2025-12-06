@@ -32,6 +32,7 @@ import { prepareRepository } from "@indexer/repos";
 import { discoverSources, parseSourceFile } from "@indexer/parsers";
 import { parseFile, isSupportedForAST } from "@indexer/ast-parser";
 import { extractSymbols } from "@indexer/symbol-extractor";
+import { extractPythonSymbols } from "@indexer/python-extractor";
 import { extractReferences } from "@indexer/reference-extractor";
 import { extractDependencies } from "@indexer/dependency-extractor";
 import type { IndexedFile } from "@shared/types/entities";
@@ -192,6 +193,33 @@ async function processIndexJob(
 		const symbols: SymbolData[] = [];
 
 		for (const file of files) {
+			// Handle Python files with regex-based extraction
+			if (file.path.endsWith(".py")) {
+				try {
+					const { symbols: pythonSymbols } = extractPythonSymbols(file.content, file.path);
+
+					for (const symbol of pythonSymbols) {
+						symbols.push({
+							file_path: file.path,
+							name: symbol.name,
+							kind: symbol.kind,
+							line_start: symbol.lineStart,
+							line_end: symbol.lineEnd,
+							signature: symbol.signature || undefined,
+							documentation: undefined,
+							metadata: symbol.className ? { className: symbol.className } : {},
+						});
+					}
+				} catch (error) {
+					logger.warn("Failed to extract Python symbols from file", {
+						file_path: file.path,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+				continue;
+			}
+
+			// Handle TypeScript/JavaScript files with AST-based extraction
 			if (!isSupportedForAST(file.path)) continue;
 
 			try {
@@ -556,6 +584,8 @@ function getLanguageFromPath(filePath: string): string {
 			return "javascript";
 		case "json":
 			return "json";
+		case "py":
+			return "python";
 		default:
 			return "unknown";
 	}

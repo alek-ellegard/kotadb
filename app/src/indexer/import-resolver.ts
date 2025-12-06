@@ -37,7 +37,7 @@ const SUPPORTED_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
  *
  * TypeScript index files take precedence over JavaScript.
  */
-const INDEX_FILES = ["index.ts", "index.tsx", "index.js", "index.jsx"];
+const INDEX_FILES = ["index.ts", "index.tsx", "index.js", "index.jsx", "__init__.py"];
 
 /**
  * Resolve an import path to an absolute file path.
