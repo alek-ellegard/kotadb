@@ -32,15 +32,33 @@ def read_hook_input() -> dict[str, Any]:
         return {}
 
 
-def output_result(decision: str, message: str = "") -> None:
+def output_result(
+    decision: str,
+    message: str = "",
+    hook_event_name: str | None = None,
+) -> None:
     """
     Write JSON result to stdout for Claude Code.
 
     Args:
         decision: Either "continue" or "block" (prefer "continue" for advisory hooks)
         message: Additional context to show Claude
+        hook_event_name: Hook event name (e.g., "UserPromptSubmit", "PostToolUse")
+                        Required for proper schema validation
     """
-    result = {"decision": decision}
+    result: dict[str, Any] = {}
+
+    # Use "continue" as boolean, not "decision"
+    if decision == "continue":
+        result["continue"] = True
+    elif decision == "block":
+        result["decision"] = "block"
+
+    # Add hook event name if provided
+    if hook_event_name:
+        result["hookEventName"] = hook_event_name
+
+    # Add additional context if provided
     if message:
         result["additionalContext"] = message
 

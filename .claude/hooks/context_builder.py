@@ -13,6 +13,14 @@ import re
 import sys
 from typing import Any
 
+# Immediate startup logging
+import tempfile
+from datetime import datetime
+
+_debug_log = os.path.join(tempfile.gettempdir(), "context_builder_debug.log")
+with open(_debug_log, "a") as _f:
+    _f.write(f"\n=== HOOK STARTED {datetime.now().isoformat()} ===\n")
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -166,28 +174,83 @@ def build_context_message(keywords: list[str]) -> str:
     return "[context-hint] Relevant docs:\n" + "\n".join(f"  - {s}" for s in suggestions)
 
 
+def write_context_file(message: str) -> None:
+    """
+    Write context message to a file that gets loaded by Claude.
+
+    Args:
+        message: Context message to write
+    """
+    # Get project root
+    project_root = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+    context_file = os.path.join(project_root, ".claude", "hooks", "context.md")
+
+    try:
+        # Write context to file (overwrite each time)
+        with open(context_file, "w") as f:
+            f.write("# Hook Context\n\n")
+            if message:
+                # Remove the [context-hint] prefix for cleaner display
+                clean_message = message.replace("[context-hint] Relevant docs:\n", "")
+                f.write(clean_message)
+                f.write("\n")
+            else:
+                f.write("_No context suggestions for current prompt._\n")
+    except Exception as e:
+        # Silently fail - don't block hook execution
+        import tempfile
+        debug_log = os.path.join(tempfile.gettempdir(), "context_builder_debug.log")
+        with open(debug_log, "a") as df:
+            df.write(f"Error writing context file: {e}\n")
+
+
 def main() -> None:
     """Main entry point for the context builder hook."""
+    import tempfile
+    from datetime import datetime
+
+    # Debug logging
+    debug_log = os.path.join(tempfile.gettempdir(), "context_builder_debug.log")
+
     hook_input = read_hook_input()
+
+    with open(debug_log, "a") as f:
+        f.write(f"\n=== {datetime.now().isoformat()} ===\n")
+        f.write(f"Raw input: {hook_input}\n")
 
     prompt = get_prompt_from_input(hook_input)
 
+    with open(debug_log, "a") as f:
+        f.write(f"Extracted prompt: {prompt!r}\n")
+
     if not prompt:
-        output_result("continue")
+        write_context_file("")  # Clear context file
+        output_result("continue", hook_event_name="UserPromptSubmit")
         return
 
     keywords = extract_keywords(prompt)
 
+    with open(debug_log, "a") as f:
+        f.write(f"Matched keywords: {keywords}\n")
+
     if not keywords:
-        output_result("continue")
+        write_context_file("")  # Clear context file
+        output_result("continue", hook_event_name="UserPromptSubmit")
         return
 
     message = build_context_message(keywords)
 
+    with open(debug_log, "a") as f:
+        f.write(f"Context message: {message!r}\n")
+        f.write(f"Outputting result with message\n")
+
+    # Write context to file for Claude to read
+    write_context_file(message)
+
     if message:
-        output_result("continue", message)
+        output_result("continue", message, hook_event_name="UserPromptSubmit")
     else:
-        output_result("continue")
+        output_result("continue", hook_event_name="UserPromptSubmit")
 
 
 if __name__ == "__main__":

@@ -116,17 +116,17 @@ def main() -> None:
     file_path = get_file_path_from_input(hook_input)
 
     if not file_path:
-        output_result("continue", "No file path in hook input")
+        output_result("continue", "No file path in hook input", hook_event_name="PostToolUse")
         return
 
     # Only process JS/TS files
     if not is_js_ts_file(file_path):
-        output_result("continue")
+        output_result("continue", hook_event_name="PostToolUse")
         return
 
     # Verify file exists
     if not os.path.exists(file_path):
-        output_result("continue", f"File not found: {file_path}")
+        output_result("continue", f"File not found: {file_path}", hook_event_name="PostToolUse")
         return
 
     project_root = get_project_root()
@@ -135,9 +135,9 @@ def main() -> None:
     success, message = run_biome_lint(file_path, project_root)
 
     if success:
-        output_result("continue", f"[auto-lint] {message}")
+        output_result("continue", f"[auto-lint] {message}", hook_event_name="PostToolUse")
     else:
-        output_result("continue", f"[auto-lint] {message}")
+        output_result("continue", f"[auto-lint] {message}", hook_event_name="PostToolUse")
 
 
 if __name__ == "__main__":
