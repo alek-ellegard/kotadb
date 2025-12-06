@@ -1,9 +1,9 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import type { IndexedFile } from "@shared/types";
-import { extractDependencies } from "./extractors";
-import { Sentry } from "../instrument.js";
 import { createLogger } from "@logging/logger.js";
+import type { IndexedFile } from "@shared/types";
+import { Sentry } from "../instrument.js";
+import { extractDependencies } from "./extractors";
 
 const logger = createLogger({ module: "indexer-parsers" });
 
@@ -15,6 +15,7 @@ const SUPPORTED_EXTENSIONS = new Set<string>([
 	".cjs",
 	".mjs",
 	".json",
+	".py",
 ]);
 
 const IGNORED_DIRECTORIES = new Set<string>([
@@ -45,9 +46,15 @@ const IGNORED_DIRECTORIES = new Set<string>([
 	// Python
 	"__pycache__",
 	".pytest_cache",
+	".mypy_cache",
+	".ruff_cache",
+	".tox",
+	".nox",
+	".eggs",
 	"venv",
 	".venv",
 	"env",
+	"site-packages",
 ]);
 
 export async function discoverSources(projectRoot: string): Promise<string[]> {
